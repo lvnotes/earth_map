@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Земля на глобусі і фізичній карті. План місцевості</title>
+<style>
+:root{--bg:#eaf3f5;--ink:#14304a;--card:#fff;--line:#c9dbe2;--acc:#1b6f8a;--ok:#2e9e5b;--bad:#d64545}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 "Trebuchet MS","Segoe UI",system-ui,sans-serif}
+[hidden]{display:none!important}
+header{padding:28px 16px 12px;max-width:760px;margin:0 auto}
+h1{font:700 26px/1.2 Georgia,"Times New Roman",serif;margin:0 0 8px}
+header p{margin:0;color:#44627a}
+.prog{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 16px;max-width:760px;margin:0 auto}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%;transition:width .3s}
+.bar .g{background:var(--ok)}.bar .r{background:var(--bad)}
+.prog small{color:#44627a}
+main{max-width:760px;margin:0 auto;padding:0 16px 40px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+.card.ok{border-color:var(--ok)}.card.bad{border-color:var(--bad)}
+h2{font-size:18px;margin:0 0 12px;display:flex;gap:10px;align-items:baseline}
+h2 b{flex:none;background:var(--ink);color:#fff;border-radius:50%;width:28px;height:28px;display:grid;place-items:center;font-size:14px;transform:translateY(-1px)}
+.body{display:flex;flex-wrap:wrap;gap:10px}
+.opt{font:inherit;color:inherit;background:#f4f9fb;border:2px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer;text-align:left}
+.opt:hover:not(:disabled){border-color:var(--acc)}
+.opt:disabled{cursor:default;opacity:.55}
+.opt.ok{background:var(--ok);border-color:var(--ok);color:#fff;opacity:1}
+.opt.bad{background:var(--bad);border-color:var(--bad);color:#fff;opacity:1}
+.art{display:block;max-width:100%;width:300px;margin:0 auto 6px}
+.wide{width:100%}
+.z{fill:rgba(0,0,0,0);cursor:pointer}
+.z:hover{fill:rgba(20,48,74,.14)}
+.z.ok{fill:rgba(46,158,91,.55)}.z.bad{fill:rgba(214,69,69,.55)}
+.p{fill:#fff;stroke:var(--ink);stroke-width:2}
+.p.ok{fill:var(--ok)}.p.bad{fill:var(--bad)}
+.br{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round}
+g.z:hover .br{stroke:var(--acc)}g.z.ok .br{stroke:var(--ok);stroke-width:5}g.z.bad .br{stroke:var(--bad);stroke-width:5}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%}
+.row span{min-width:150px;font-weight:700}
+select{font:inherit;flex:1;min-width:200px;padding:8px;border:2px solid var(--line);border-radius:10px;background:#f4f9fb;color:var(--ink)}
+select.ok{border-color:var(--ok);background:#dff3e7}select.bad{border-color:var(--bad);background:#f9dede}
+.go{font:inherit;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:10px 20px;cursor:pointer}
+.go:disabled{opacity:.5;cursor:default}
+.hint{color:var(--bad);width:100%;margin:0}
+#sum{background:var(--ink);color:#fff;border-radius:14px;padding:22px;margin:18px 0;text-align:center}
+#sum .big{font:700 44px Georgia,serif;margin:0}
+#sum p{margin:6px 0}
+#sum .go{background:#fff;color:var(--ink);margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+<h1>Земля на глобусі і фізичній карті. План місцевості</h1>
+<p>Обирай відповіді. Правильні стають зеленими, неправильні — червоними. Щоразу запитання і варіанти відповідей йдуть в іншому порядку.</p>
+</header>
+<div class="prog"><div class="bar"><i class="g" id="bg"></i><i class="r" id="br"></i></div><small id="pt"></small></div>
+<main>
+<div id="list"></div>
+<section id="sum" hidden>
+<p>Твій результат</p>
+<p class="big" id="sc"></p>
+<p id="msg"></p>
+<p id="rev"></p>
+<button class="go" id="again">Пройти ще раз</button>
+</section>
+</main>
+<script>
+
+const $=s=>document.querySelector(s);
+const sh=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=a=>a[Math.random()*a.length|0];
+
+// Запитання з одним варіантом відповіді
+const mc=(q,right,wrong,art='')=>({q,art,mount(el,cb){
+  sh([right,...wrong]).forEach(o=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=o;
+    b.onclick=()=>{el.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+      const ok=o===right;b.classList.add(ok?'ok':'bad');b.disabled=false;cb(ok)};
+    el.append(b)});
+}});
+
+
+// Глобус: клік по півкулі або по полюсу
+const globe=(q,target,pole)=>({q,mount(el,cb){
+  el.innerHTML=`<svg class="art" viewBox="0 0 200 200"><circle cx="100" cy="100" r="80" fill="#bfe3f2" stroke="#14304a" stroke-width="2"/>
+  <g fill="none" stroke="#5aa0cc" stroke-width=".9"><ellipse cx="100" cy="100" rx="30" ry="80"/><ellipse cx="100" cy="100" rx="60" ry="80"/><path d="M100 20V180M30.7 60H169.3M30.7 140H169.3"/></g>
+  <line x1="20" y1="100" x2="180" y2="100" stroke="#d64545" stroke-width="3"/>
+  <path class="z" data-z="N" d="M20 100A80 80 0 0 1 180 100Z"/><path class="z" data-z="S" d="M20 100A80 80 0 0 0 180 100Z"/>
+  ${pole?'<circle class="z p" data-z="PN" cx="100" cy="20" r="9"/><circle class="z p" data-z="PS" cx="100" cy="180" r="9"/>':''}</svg>`;
+  let lock=false;
+  el.querySelectorAll('[data-z]').forEach(z=>z.onclick=()=>{if(lock)return;lock=true;
+    const ok=z.dataset.z===target;z.classList.add(ok?'ok':'bad');cb(ok)});
+}});
+
+// Кольорова шкала: клік по групі кольорів
+const bar=(q,target)=>({q,mount(el,cb){
+  const c=['#3f84c4','#68a9dc','#9ad2f2','#b9e0f5','#d5ecd6','#dfe9c6','#e6e47a','#f2c9b0','#e0a47e','#c9786a','#b1424c'];
+  const rect=(a,b)=>c.slice(a,b).map((f,i)=>`<rect x="${(a+i)*30}" y="0" width="30" height="34" fill="${f}"/>`).join('');
+  el.innerHTML=`<svg class="art wide" viewBox="0 0 330 70"><g class="z" data-z="W">${rect(0,5)}<path class="br" d="M3 44V54H147V44M75 54V66"/></g>
+  <g class="z" data-z="L">${rect(5,11)}<path class="br" d="M153 44V54H327V44M240 54V66"/></g></svg>`;
+  let lock=false;
+  el.querySelectorAll('[data-z]').forEach(z=>z.onclick=()=>{if(lock)return;lock=true;
+    const ok=z.dataset.z===target;z.classList.add(ok?'ok':'bad');cb(ok)});
+}});
+
+// Встановлення відповідності
+const match=()=>{
+  const ch={A:'знаходиться на північ від екватора',B:'уявна лінія, що проходить через полюси та центр Землі',V:'найпівнічніша точка на Землі',G:'знаходиться на південь від екватора',GG:'уявна лінія, що ділить планету на дві рівні півкулі — північну та південну',D:'найпівденніша точка на Землі'};
+  const pairs=[['екватор','GG'],['вісь Землі','B'],['північний полюс','V'],['південний полюс','D'],['північна пів­куля','A'],['південна пів­куля','G']];
+  return {q:'Встанови відповідність між назвами елементів глобуса та їхніми характеристиками.',mount(el,cb){
+    sh(pairs).forEach(([n,k])=>{
+      const r=document.createElement('div');r.className='row';
+      r.innerHTML=`<span>${n}</span><select data-k="${k}"><option value="">— обери —</option>${sh(Object.keys(ch)).map(x=>`<option value="${x}">${ch[x]}</option>`).join('')}</select>`;
+      el.append(r)});
+    const hint=document.createElement('p');hint.className='hint';hint.hidden=true;hint.textContent='Спочатку добери відповідність до кожного елемента.';
+    const b=document.createElement('button');b.className='go';b.textContent='Перевірити';
+    b.onclick=()=>{const s=[...el.querySelectorAll('select')];
+      if(s.some(x=>!x.value)){hint.hidden=false;return}
+      hint.hidden=true;let all=true;
+      s.forEach(x=>{const ok=x.value===x.dataset.k;if(!ok)all=false;x.classList.add(ok?'ok':'bad');x.disabled=true});
+      b.disabled=true;cb(all)};
+    el.append(hint,b);
+  }};
+};
+
+const planSvg=`<img class='art' src='img/map.jpg' alt='План місцевості'>`;
+const ukrSvg=`<img class='art' src='img/ukraine.jpg' alt='Карта України'>`;
+
+function build(){
+  const hemi=pick(['N','S']),hp=pick(['PN','PS']),land=Math.random()<.5;
+  return [
+    mc('Яку форму має наша планета Земля?','куляста',['плоска','овальна','плоска у вигляді диска']),
+    match(),
+    mc('Подумай: ближче до центру Землі перебуває людина, яка знаходиться…','на полюсі',['на екваторі','відстань однакова до екватора та до полюса']),
+    mc('Яка довжина екватора?','40 075 км',['40 009 км','12 742 км','6 378 км']),
+    mc('Перший учений, який припустив, що форма Землі куляста:','Піфагор',['Арістотель','Демокріт','Ньютон']),
+    mc('Учений, що здійснив першу навколосвітню подорож:','Магеллан',['Піфагор','Лавуазьє','Колумб']),
+    globe(hemi==='N'?'Познач на малюнку Північну півкулю.':'Познач на малюнку Південну півкулю.',hemi,false),
+    globe(hp==='PN'?'Познач на малюнку Північний полюс.':'Познач на малюнку Південний полюс.',hp,true),
+    mc('Нульовий меридіан має назву:','Грінвіцький',['Лондонський','Гамбурзький','Англійський']),
+    mc('Зображення невеликої ділянки земної поверхні у зменшеному вигляді — це…','план місцевості',['карта','малюнок','фотознімок']),
+    mc('Зменшене й узагальнене зображення земної поверхні або її частини, де об’єкти показані за допомогою умовних знаків у певному масштабі:','карта',['план','глобус','аерознімок']),
+    mc('Глобуси поділяють на:','політичні і природні',['загальногеографічні і тематичні','біогеографічні і урбаністичні']),
+    mc('Найдовша паралель називається…','екватор',['грінвіцькою']),
+    mc('Який спосіб зображення земної поверхні показано на малюнку?','план',['карта','малюнок','глобус'],planSvg),
+    mc('Система умовних позначень і текстового супроводу до них — це:','легенда',['математична основа','картографічне зображення','допоміжне оснащення']),
+    bar(land?'Познач на малюнку, які кольори показують висоту над рівнем моря.':'Познач на малюнку, які кольори показують глибину моря.',land?'L':'W'),
+    mc('Форми рельєфу, при яких поверхня землі в межах видимого горизонту є рівною або слабко хвилястою:','рівнини',['гори']),
+    mc('Систематизоване зібрання карт із пояснювальними текстами:','атлас',['контурна карта']),
+    mc('За переважними кольорами на фізичній карті України визнач, яка форма рельєфу переважає на території України:','низовини',['височини','плоскогір’я','гори'],ukrSvg)
+  ];
+}
+
+let Q,res,total;
+function start(){
+  Q=sh(build());total=Q.length;res=Q.map(()=>null);
+  const box=$('#list');box.innerHTML='';$('#sum').hidden=true;
+  Q.forEach((q,i)=>{
+    const c=document.createElement('section');c.className='card';
+    c.innerHTML=`<h2><b>${i+1}</b><span>${q.q}</span></h2>${q.art||''}<div class="body"></div>`;
+    box.append(c);
+    q.mount(c.querySelector('.body'),ok=>{
+      if(res[i]!==null)return;res[i]=ok;c.classList.add(ok?'ok':'bad');upd();
+      if(res.every(r=>r!==null))finish()});
+  });
+  upd();
+}
+function upd(){
+  const g=res.filter(r=>r===true).length,r=res.filter(r=>r===false).length;
+  $('#bg').style.width=g/total*100+'%';$('#br').style.width=r/total*100+'%';
+  $('#pt').textContent=`Відповіли: ${g+r} з ${total} · правильно: ${g}`;
+}
+function finish(){
+  const g=res.filter(Boolean).length,p=Math.round(g/total*100);
+  $('#sc').textContent=`${g} з ${total}`;
+  $('#msg').textContent=p>=90?'Відмінно! Ти справжній географ-мореплавець.':p>=70?'Дуже добре! Ще трохи — і буде ідеально.':p>=50?'Непогано, але тему варто повторити.':'Повтори тему й спробуй ще раз — запитання будуть у новому порядку.';
+  const bad=res.map((r,i)=>r?null:i+1).filter(Boolean);
+  $('#rev').textContent=bad.length?'Повтори запитання: '+bad.join(', ')+'.':'Усі відповіді правильні!';
+  $('#sum').hidden=false;$('#sum').scrollIntoView({behavior:'smooth',block:'center'});
+}
+$('#again').onclick=()=>{start();scrollTo({top:0,behavior:'smooth'})};
+start();
+</script>
+</body>
+</html>
